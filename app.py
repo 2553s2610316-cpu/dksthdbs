@@ -1,4 +1,3 @@
-import streamlit as mode
 import streamlit as st
 from google import genai
 from google.genai import types
@@ -9,21 +8,22 @@ st.set_page_config(page_title="신비로운 타로 챗봇", page_icon="🔮")
 st.title("🔮 AI 타로 마스터")
 st.caption("고민을 말씀하시면 타로 카드의 리딩을 통해 조언을 해드립니다.")
 
-# 1. Secrets에서 API 키 불러오기 및 클라이언트 초기화
+# 1. Secrets에서 API 키 불러오기
 try:
-    # Streamlit Cloud 환경 또는 local의 .streamlit/secrets.toml에서 불러옵니다.
     api_key = st.secrets["GEMINI_API_KEY"]
-    client = genai.Client(api_key=api_key)
 except KeyError:
     st.error("🔑 API 키를 찾을 수 없습니다. Streamlit Secrets 설정을 확인해주세요.")
     st.stop()
 
-# 2. 세션 상태(채팅 기록) 초기화
+# 2. 세션 상태(채팅 기록 및 클라이언트) 초기화
+# ★ 핵심: client와 chat_session을 세션 상태에 함께 묶어서 유지합니다.
+if "client" not in st.session_state:
+    st.session_state.client = genai.Client(api_key=api_key)
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
     
 if "chat_session" not in st.session_state:
-    # 타로 마스터로서의 페르소나를 부여하는 시스템 지침(System Instruction) 설정
     system_instruction = (
         "당신은 신비롭고 공감 능력이 뛰어난 전문 타로 카드 마스터입니다. "
         "사용자가 고민을 이야기하면, 타로 카드를 스프레드(뽑기)하여 그 의미를 "
@@ -32,8 +32,8 @@ if "chat_session" not in st.session_state:
         "사용자에게 위로와 통찰을 줄 수 있는 방향으로 리딩해야 합니다."
     )
     
-    # gemini-2.5-flash-lite 모델을 사용하여 채팅 세션 생성
-    st.session_state.chat_session = client.chats.create(
+    # 세션에 저장된 client를 사용하여 chat 생성
+    st.session_state.chat_session = st.session_state.client.chats.create(
         model="gemini-2.5-flash-lite",
         config=types.GenerateContentConfig(
             system_instruction=system_instruction,
